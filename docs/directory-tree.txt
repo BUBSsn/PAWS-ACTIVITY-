@@ -1,0 +1,28 @@
+PAWS(ACTIVITY)/
+  .env.example
+  .gitignore
++ docs/
+    demo-script.md
+    form-controls.md
+    implementation-plan.md
+    manual-checklist.md
+  + screenshots/
+  + superpowers/
+  index.html
+  package.json
+  README.md
++ scripts/
+    browser-check.cjs
++ server/
+    index.js
+    store.js
++ shared/
+    rules.js
++ src/
+    main.jsx
+    styles.css
++ supabase/
+    schema.sql
++ tests/
+    api.test.js
+    rules.test.js
