@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { CalendarDays, UserRound, FileCheck2, ChartNoAxesCombined, PawPrint, ArrowUpRight, ArrowRight, Plus, Check, ChevronDown, UploadCloud, ShieldCheck, Clock3, Download, CheckCircle2, AlertCircle, X, Leaf, LogOut, Menu, FileText } from 'lucide-react';
+import { CalendarDays, UserRound, FileCheck2, ChartNoAxesCombined, PawPrint, ArrowUpRight, ArrowRight, Plus, Check, ChevronDown, UploadCloud, ShieldCheck, Clock3, Download, CheckCircle2, AlertCircle, X, Leaf, LogOut, Menu, FileText, ChevronLeft, ChevronRight, Calendar, Sparkles, Info } from 'lucide-react';
 import { categories, today, eventSchema, profileSchema, submissionSchema, reportSchema, errorsFor, vaccinationStatus, hours } from '../shared/rules.js';
 import './styles.css';
 
@@ -126,11 +126,324 @@ function Profile({ data, api, refresh, notify, isStaff }) {
   const status = vaccinationStatus(data.profile);
   return <div className="content-grid"><section className="panel form-panel"><PanelHeading icon={UserRound} title="Profile & vaccination" text="Your information helps us care for the whole community." aside="* Required fields"/>{isStaff ? <AccessNote>This form belongs to volunteers. In local demo mode, select Maya Santos or Luis Reyes to save a profile.</AccessNote> : <form noValidate ref={f.ref} onSubmit={e => { e.preventDefault(); f.submit(async () => { const body = new FormData(); for (const [k, v] of Object.entries(f.values)) if (typeof v === 'string') body.append(k, v); if (f.file) body.append('evidence', f.file); const saved = await api('/api/profile', { method: 'PUT', body }); await refresh(); f.reset(saved); notify('Profile saved. Your eligibility has been updated.'); }); }}><FormErrors errors={f.errors}/><div className="form-body"><div className="section-caption">CONTACT INFORMATION</div><div className="fields"><Field name="firstName" label="First name" errors={f.errors}><input {...f.bind('firstName')} autoComplete="given-name" placeholder="e.g. Maya" maxLength={60}/></Field><Field name="lastName" label="Last name" errors={f.errors}><input {...f.bind('lastName')} autoComplete="family-name" placeholder="e.g. Santos" maxLength={60}/></Field><Field name="email" label="Email address" errors={f.errors}><input {...f.bind('email')} type="email" autoComplete="email" placeholder="you@example.com"/></Field><Field name="phone" label="Mobile number" errors={f.errors} hint="Use 09xxxxxxxxx or +639xxxxxxxxx."><input {...f.bind('phone')} type="tel" autoComplete="tel" placeholder="09171234567"/></Field></div><div className="section-caption">VACCINATION RECORD</div><div className="fields"><Field name="vaccine" label="Vaccination name" errors={f.errors} full hint="Enter the vaccination shown on your document."><input {...f.bind('vaccine')} placeholder="e.g. Anti-rabies vaccination" maxLength={100}/></Field><Field name="administered" label="Date administered" errors={f.errors}><input {...f.bind('administered')} type="date" max={today()}/></Field><Field name="expires" label="Expiry date" errors={f.errors} hint="Use the expiry date on your record."><input {...f.bind('expires')} type="date"/></Field><FileField errors={f.errors} file={f.file} setFile={f.setFile} existing={data.profile.evidence} inputKey={f.fileKey}/></div></div><Actions busy={f.busy} primary="Save profile" reset={() => f.reset(initial)} icon={Check}/></form>}</section><aside className="results-column"><section className="panel"><PanelHeading icon={UserRound} title="Your saved profile"/>{isStaff ? <Empty icon={UserRound} title="Volunteer view">Select a volunteer account to see their saved profile.</Empty> : <div className="profile-summary"><div className="profile-avatar">{(data.profile.firstName || data.user.name)[0]}<PawPrint size={19}/></div><h3>{data.profile.firstName ? `${data.profile.firstName} ${data.profile.lastName}` : data.user.name}</h3><p>{data.user.senior ? 'Senior volunteer' : 'Junior volunteer'}</p><div className="profile-details"><div><span>Vaccination</span><Badge status={status}/></div><div><span>Email</span><strong>{data.profile.email || 'Not yet saved'}</strong></div><div><span>Mobile</span><strong>{data.profile.phone || 'Not yet saved'}</strong></div>{data.profile.expires && <div><span>Valid until</span><strong>{data.profile.expires}</strong></div>}</div>{data.profile.evidence && <DownloadEvidence api={api} kind="profile" id={data.user.id}/>}</div>}</section><Note title="Your health matters">Expired records can be saved, but current vaccination is needed for restricted animal-care activities. Event eligibility also checks the event date.</Note><Note title="Your role stays protected" icon={UserRound}>Experience level and permissions are managed by staff. This form only updates your contact and vaccination details.</Note></aside></div>;
 }
+function CalendarDatePicker({ id = 'date', name = 'date', value = '', onChange, errors = {}, submissions = [], required = true, ...rest }) {
+  const todayStr = today();
+  const [ty, tm, td] = todayStr.split('-').map(Number);
+  const currentYear = ty;
+  const currentMonth = tm - 1;
+
+  const [viewYear, setViewYear] = useState(() => {
+    if (value && /^\d{4}-\d{2}-\d{2}$/.test(value)) return Number(value.slice(0, 4));
+    return currentYear;
+  });
+
+  const [viewMonth, setViewMonth] = useState(() => {
+    if (value && /^\d{4}-\d{2}-\d{2}$/.test(value)) return Number(value.slice(5, 7)) - 1;
+    return currentMonth;
+  });
+
+  useEffect(() => {
+    if (value && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      setViewYear(Number(value.slice(0, 4)));
+      setViewMonth(Number(value.slice(5, 7)) - 1);
+    }
+  }, [value]);
+
+  function prevMonth() {
+    if (viewMonth === 0) {
+      setViewYear(y => y - 1);
+      setViewMonth(11);
+    } else {
+      setViewMonth(m => m - 1);
+    }
+  }
+
+  function nextMonth() {
+    if (viewYear > currentYear || (viewYear === currentYear && viewMonth >= currentMonth)) return;
+    if (viewMonth === 11) {
+      setViewYear(y => y + 1);
+      setViewMonth(0);
+    } else {
+      setViewMonth(m => m + 1);
+    }
+  }
+
+  function goToCurrentMonth() {
+    setViewYear(currentYear);
+    setViewMonth(currentMonth);
+  }
+
+  const isNextDisabled = viewYear > currentYear || (viewYear === currentYear && viewMonth >= currentMonth);
+
+  function formatDateStr(y, m, d) {
+    return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  }
+
+  const presets = [
+    { label: 'Today', dateStr: todayStr },
+    {
+      label: 'Yesterday',
+      dateStr: (() => {
+        const d = new Date(ty, tm - 1, td - 1);
+        return formatDateStr(d.getFullYear(), d.getMonth(), d.getDate());
+      })()
+    },
+    {
+      label: '2 days ago',
+      dateStr: (() => {
+        const d = new Date(ty, tm - 1, td - 2);
+        return formatDateStr(d.getFullYear(), d.getMonth(), d.getDate());
+      })()
+    },
+    {
+      label: '3 days ago',
+      dateStr: (() => {
+        const d = new Date(ty, tm - 1, td - 3);
+        return formatDateStr(d.getFullYear(), d.getMonth(), d.getDate());
+      })()
+    }
+  ];
+
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const daysInPrev = new Date(viewYear, viewMonth, 0).getDate();
+
+  const cells = [];
+  for (let i = firstDay - 1; i >= 0; i--) {
+    cells.push({
+      key: `prev-${i}`,
+      day: daysInPrev - i,
+      isCurrentMonth: false,
+      isFuture: false,
+      dateStr: ''
+    });
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dStr = formatDateStr(viewYear, viewMonth, d);
+    const daySubs = (submissions || []).filter(s => s.date === dStr && s.status !== 'Rejected');
+    cells.push({
+      key: `curr-${d}`,
+      day: d,
+      isCurrentMonth: true,
+      dateStr: dStr,
+      isToday: dStr === todayStr,
+      isSelected: dStr === value,
+      isFuture: dStr > todayStr,
+      daySubs,
+      hasApproved: daySubs.some(s => s.status === 'Approved'),
+      hasPending: daySubs.some(s => s.status === 'Pending')
+    });
+  }
+
+  const totalSlots = cells.length <= 35 ? 35 : 42;
+  let nextDay = 1;
+  while (cells.length < totalSlots) {
+    cells.push({
+      key: `next-${nextDay}`,
+      day: nextDay,
+      isCurrentMonth: false,
+      isFuture: true,
+      dateStr: ''
+    });
+    nextDay++;
+  }
+
+  const selectedSubs = value ? (submissions || []).filter(s => s.date === value && s.status !== 'Rejected') : [];
+
+  function formatReadable(dStr) {
+    if (!dStr) return '';
+    const [y, m, d] = dStr.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    return dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function getRelative(dStr) {
+    if (!dStr) return '';
+    if (dStr === todayStr) return 'Today';
+    const [y, m, d] = dStr.split('-').map(Number);
+    const diff = Math.round((new Date(ty, tm - 1, td) - new Date(y, m - 1, d)) / 86400000);
+    if (diff === 1) return 'Yesterday';
+    if (diff > 1) return `${diff} days ago`;
+    if (diff < 0) return 'Future date';
+    return '';
+  }
+
+  return (
+    <div className="calendar-widget-container">
+      <div className="calendar-presets-row">
+        <span className="calendar-presets-label"><Sparkles size={13}/> Quick pick:</span>
+        <div className="calendar-preset-pills">
+          {presets.map(p => (
+            <button
+              key={p.label}
+              type="button"
+              className={`calendar-preset-btn ${value === p.dateStr ? 'active' : ''}`}
+              onClick={() => onChange?.(p.dateStr)}
+            >
+              {value === p.dateStr && <Check size={12} strokeWidth={3}/>}
+              <span>{p.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className={`calendar-card ${errors[name] ? 'has-error' : ''}`}>
+        <div className="calendar-header">
+          <div className="calendar-header-title">
+            <Calendar size={16} className="calendar-header-icon"/>
+            <h3>{monthNames[viewMonth]} {viewYear}</h3>
+            {(viewYear !== currentYear || viewMonth !== currentMonth) && (
+              <button
+                type="button"
+                className="calendar-today-btn"
+                onClick={goToCurrentMonth}
+              >
+                Current month
+              </button>
+            )}
+          </div>
+          <div className="calendar-nav-controls">
+            <button
+              type="button"
+              className="calendar-nav-btn"
+              onClick={prevMonth}
+              aria-label="Previous month"
+              title="Previous month"
+            >
+              <ChevronLeft size={16}/>
+            </button>
+            <button
+              type="button"
+              className="calendar-nav-btn"
+              onClick={nextMonth}
+              disabled={isNextDisabled}
+              aria-label="Next month"
+              title={isNextDisabled ? 'Future months are disabled' : 'Next month'}
+            >
+              <ChevronRight size={16}/>
+            </button>
+          </div>
+        </div>
+
+        <div className="calendar-weekdays" aria-hidden="true">
+          {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(w => (
+            <div key={w} className="calendar-weekday">{w}</div>
+          ))}
+        </div>
+
+        <div className="calendar-days-grid" role="grid" aria-label={`Calendar for ${monthNames[viewMonth]} ${viewYear}`}>
+          {cells.map(c => {
+            if (!c.isCurrentMonth) {
+              return (
+                <div key={c.key} className="calendar-day-cell is-other-month" aria-hidden="true">
+                  <span className="calendar-day-number">{c.day}</span>
+                </div>
+              );
+            }
+            const cellClass = [
+              'calendar-day-cell',
+              c.isToday ? 'is-today' : '',
+              c.isSelected ? 'is-selected' : '',
+              c.isFuture ? 'is-future' : ''
+            ].filter(Boolean).join(' ');
+
+            return (
+              <button
+                key={c.key}
+                type="button"
+                className={cellClass}
+                disabled={c.isFuture}
+                onClick={() => onChange?.(c.dateStr)}
+                aria-label={`${monthNames[viewMonth]} ${c.day}, ${viewYear}${c.isToday ? ' (Today)' : ''}${c.isSelected ? ' (Selected)' : ''}${c.daySubs?.length ? ` (${c.daySubs.length} existing submission)` : ''}`}
+                aria-selected={c.isSelected}
+              >
+                <span className="calendar-day-number">{c.day}</span>
+                {c.daySubs && c.daySubs.length > 0 && (
+                  <span className="calendar-dots" title={`${c.daySubs.length} submission(s) logged on this date`}>
+                    {c.hasApproved && <span className="calendar-dot approved"/>}
+                    {c.hasPending && <span className="calendar-dot pending"/>}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="calendar-footer">
+          <div className="calendar-date-input-wrapper">
+            <label htmlFor={id} className="calendar-input-label">
+              <Clock3 size={13}/>
+              <span>Work date:</span>
+            </label>
+            <input
+              id={id}
+              name={name}
+              type="date"
+              max={todayStr}
+              value={value || ''}
+              onChange={e => onChange?.(e.target.value)}
+              className="calendar-native-input"
+              aria-invalid={!!errors[name]}
+              aria-describedby={`${name}-help ${errors[name] ? `${name}-error` : ''}`}
+              required={required}
+              {...rest}
+            />
+          </div>
+
+          {value ? (
+            <div className="calendar-selected-badge">
+              <span className="selected-indicator"/>
+              <span className="selected-text">
+                Selected: <strong>{formatReadable(value)}</strong>
+                {getRelative(value) && (
+                  <span className="relative-tag">{getRelative(value)}</span>
+                )}
+              </span>
+            </div>
+          ) : (
+            <span className="calendar-no-selection">No date selected yet</span>
+          )}
+        </div>
+
+        {selectedSubs.length > 0 && (
+          <div className="calendar-existing-notice">
+            <Info size={14}/>
+            <div>
+              <strong>Existing work on {formatReadable(value)}:</strong>
+              <ul>
+                {selectedSubs.map(s => (
+                  <li key={s.id}>
+                    {s.start}–{s.end} ({hours(s.duration)}) · {s.title} — <span className={`badge-inline ${s.status.toLowerCase()}`}>{s.status}</span>
+                  </li>
+                ))}
+              </ul>
+              <small>Ensure your new submission uses non-overlapping hours.</small>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="calendar-legend">
+        <div className="legend-item"><span className="legend-dot today-dot"/> Today</div>
+        <div className="legend-item"><span className="legend-dot selected-dot"/> Selected</div>
+        <div className="legend-item"><span className="legend-dot approved-dot"/> Approved work</div>
+        <div className="legend-item"><span className="legend-dot pending-dot"/> Pending review</div>
+      </div>
+    </div>
+  );
+}
+
 const remoteInitial = { title: '', category: '', date: '', start: '', end: '', reviewer: '', description: '' };
 function Remote({ data, api, refresh, notify, isStaff }) {
   const f = useForm(remoteInitial, submissionSchema, true);
   const approved = data.submissions.reduce((sum, s) => sum + s.credited, 0), pending = data.submissions.filter(s => s.status === 'Pending').length;
-  return <div className="content-grid"><section className="panel form-panel"><PanelHeading icon={FileCheck2} title={isStaff ? 'Review remote work' : 'Submit remote work'} text={isStaff ? 'Review the evidence before crediting volunteer hours.' : 'A record of the time and care you contributed.'} aside={isStaff ? `${pending} awaiting review` : '* Required fields'}/>{isStaff ? <div className="review-list">{!data.submissions.length ? <Empty icon={FileCheck2} title="Nothing awaiting your review">Submissions assigned to you will appear here with their proof of work.</Empty> : data.submissions.map(s => <ReviewCard key={s.id} record={s} api={api} refresh={refresh} notify={notify}/>)}</div> : <form noValidate ref={f.ref} onSubmit={e => { e.preventDefault(); f.submit(async () => { const body = new FormData(); Object.entries(f.values).forEach(([k, v]) => body.append(k, v)); body.append('evidence', f.file); await api('/api/submissions', { method: 'POST', body }); await refresh(); f.reset(); notify('Work submitted. Your hours are pending staff approval.'); }); }}><FormErrors errors={f.errors}/><div className="form-body"><div className="section-caption">YOUR CONTRIBUTION</div><div className="fields"><Field name="title" label="Activity title" errors={f.errors} full><input {...f.bind('title')} placeholder="e.g. Adoption campaign poster design" maxLength={100}/></Field><Field name="category" label="Activity category" errors={f.errors}><select {...f.bind('category')}><option value="">Choose a category</option>{categories.map(c => <option key={c}>{c}</option>)}</select></Field><Field name="reviewer" label="Assigning staff member" errors={f.errors}><select {...f.bind('reviewer')}><option value="">Choose your reviewer</option>{data.staff.map(s => <option value={s.id} key={s.id}>{s.name}</option>)}</select></Field><Field name="date" label="Work date" errors={f.errors} full hint="Choose the day you completed this work."><input {...f.bind('date')} type="date" max={today()}/></Field><Field name="start" label="Start time" errors={f.errors}><input {...f.bind('start')} type="time"/></Field><Field name="end" label="End time" errors={f.errors} hint="Hours are calculated automatically."><input {...f.bind('end')} type="time"/></Field><Field name="description" label="Work completed" errors={f.errors} full hint="20–2,000 characters. Describe your output and contribution."><textarea {...f.bind('description')} rows={4} maxLength={2000} placeholder="What did you complete, and how did it help?"/></Field><FileField errors={f.errors} file={f.file} setFile={f.setFile} inputKey={f.fileKey}/></div></div><Actions busy={f.busy} primary="Submit for approval" reset={() => f.reset()}/></form>}</section><aside className="results-column"><section className="panel"><PanelHeading icon={Clock3} title={isStaff ? 'Assigned contributions' : 'Your contributions'}/><div className="contribution-total"><span>APPROVED SERVICE TIME</span><strong>{hours(approved)}</strong><small>{pending} {pending === 1 ? 'submission' : 'submissions'} pending approval</small></div><div className="submission-list">{!data.submissions.length ? <Empty icon={FileText} title="Make your time count">Submitted work appears here. Hours are credited after staff approval.</Empty> : data.submissions.map(s => <article className="submission-card" key={s.id}><div><span className="card-eyebrow">{s.date} · {hours(s.duration)}</span><Badge status={s.status}/></div><h3>{s.title}</h3><p>{s.category}</p>{s.reason && <p className="rejection-reason">Staff note: {s.reason}</p>}</article>)}</div></section><Note title="Submitted ≠ credited" icon={Clock3}>Your time is calculated from the start and end times. Only approved work is included in credited volunteer hours.</Note></aside></div>;
+  return <div className="content-grid"><section className="panel form-panel"><PanelHeading icon={FileCheck2} title={isStaff ? 'Review remote work' : 'Submit remote work'} text={isStaff ? 'Review the evidence before crediting volunteer hours.' : 'A record of the time and care you contributed.'} aside={isStaff ? `${pending} awaiting review` : '* Required fields'}/>{isStaff ? <div className="review-list">{!data.submissions.length ? <Empty icon={FileCheck2} title="Nothing awaiting your review">Submissions assigned to you will appear here with their proof of work.</Empty> : data.submissions.map(s => <ReviewCard key={s.id} record={s} api={api} refresh={refresh} notify={notify}/>)}</div> : <form noValidate ref={f.ref} onSubmit={e => { e.preventDefault(); f.submit(async () => { const body = new FormData(); Object.entries(f.values).forEach(([k, v]) => body.append(k, v)); body.append('evidence', f.file); await api('/api/submissions', { method: 'POST', body }); await refresh(); f.reset(); notify('Work submitted. Your hours are pending staff approval.'); }); }}><FormErrors errors={f.errors}/><div className="form-body"><div className="section-caption">YOUR CONTRIBUTION</div><div className="fields"><Field name="title" label="Activity title" errors={f.errors} full><input {...f.bind('title')} placeholder="e.g. Adoption campaign poster design" maxLength={100}/></Field><Field name="category" label="Activity category" errors={f.errors}><select {...f.bind('category')}><option value="">Choose a category</option>{categories.map(c => <option key={c}>{c}</option>)}</select></Field><Field name="reviewer" label="Assigning staff member" errors={f.errors}><select {...f.bind('reviewer')}><option value="">Choose your reviewer</option>{data.staff.map(s => <option value={s.id} key={s.id}>{s.name}</option>)}</select></Field><Field name="date" label="Work date" errors={f.errors} full hint="Select the day you completed this work. Quick presets and existing activity markers are provided."><CalendarDatePicker id="date" name="date" value={f.values.date} onChange={val => f.bind('date').onChange({ target: { value: val } })} errors={f.errors} submissions={data.submissions}/></Field><Field name="start" label="Start time" errors={f.errors}><input {...f.bind('start')} type="time"/></Field><Field name="end" label="End time" errors={f.errors} hint="Hours are calculated automatically."><input {...f.bind('end')} type="time"/></Field><Field name="description" label="Work completed" errors={f.errors} full hint="20–2,000 characters. Describe your output and contribution."><textarea {...f.bind('description')} rows={4} maxLength={2000} placeholder="What did you complete, and how did it help?"/></Field><FileField errors={f.errors} file={f.file} setFile={f.setFile} inputKey={f.fileKey}/></div></div><Actions busy={f.busy} primary="Submit for approval" reset={() => f.reset()}/></form>}</section><aside className="results-column"><section className="panel"><PanelHeading icon={Clock3} title={isStaff ? 'Assigned contributions' : 'Your contributions'}/><div className="contribution-total"><span>APPROVED SERVICE TIME</span><strong>{hours(approved)}</strong><small>{pending} {pending === 1 ? 'submission' : 'submissions'} pending approval</small></div><div className="submission-list">{!data.submissions.length ? <Empty icon={FileText} title="Make your time count">Submitted work appears here. Hours are credited after staff approval.</Empty> : data.submissions.map(s => <article className="submission-card" key={s.id}><div><span className="card-eyebrow">{s.date} · {hours(s.duration)}</span><Badge status={s.status}/></div><h3>{s.title}</h3><p>{s.category}</p>{s.reason && <p className="rejection-reason">Staff note: {s.reason}</p>}</article>)}</div></section><Note title="Submitted ≠ credited" icon={Clock3}>Your time is calculated from the start and end times. Only approved work is included in credited volunteer hours.</Note></aside></div>;
 }
 function ReviewCard({ record: s, api, refresh, notify }) {
   const [reason, setReason] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState(''), [rejecting, setRejecting] = useState(false);

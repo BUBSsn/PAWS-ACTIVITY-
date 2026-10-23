@@ -49,7 +49,7 @@ Purpose: a volunteer records completed offsite work for the assigning staff memb
 | 1 | Activity title | Text | Required, 3-100 trimmed characters |
 | 2 | Activity category | Select | Required recognized category |
 | 3 | Assigning staff member | Select | Required existing staff account |
-| 4 | Work date | Date | Required real date, not in the future |
+| 4 | Work date | Interactive Calendar / Date | Required real date, not in the future; interactive calendar widget with quick presets (Today, Yesterday, 2 days ago), month navigation, existing submission status markers, and accessible direct date input |
 | 5 | Start time | Time | Required valid time |
 | 6 | End time | Time | Required, after start on the same day |
 | 7 | Work completed | Textarea | Required, 20-2,000 trimmed characters |
