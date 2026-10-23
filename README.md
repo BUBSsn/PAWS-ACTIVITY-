@@ -1,62 +1,116 @@
-# PAWS Volunteer Portal - Form Controls Activity
+﻿# PAWS Volunteer Portal
 
-A working React + Node.js app containing two major forms and two supporting forms, styled with the green, cream, white, and charcoal colors observed on the PAWS website. This is an academic project, not an official PAWS service.
+A classroom project built with React and Node.js. Staff can create events and review remote work, while volunteers can update their profiles and submit work for approval.
 
-## Run locally
+This is **not an official PAWS service**. Use fictional names, contact details, and documents when trying it.
 
-Use Node.js 22.12 or newer and npm.
+## Get started
+
+Install **Node.js 22.12 or newer** and npm. From the project folder, run:
 
 ```sh
 npm install
 npm run dev
 ```
 
-Open **http://localhost:3000**. No external account is needed in local mode. The banner explicitly identifies this as a classroom demonstration. Demo identity selection is not authentication; use fictional data only.
+Open [http://localhost:3000](http://localhost:3000). The default local demo needs no account or configuration.
 
-- **Ana Cruz - Staff:** create events, approve or reject assigned remote submissions, and generate reports.
-- **Maya Santos - Volunteer:** edit a junior volunteer profile and submit remote work.
-- **Luis Reyes - Volunteer:** edit a senior volunteer profile and submit remote work.
+Use the identity selector at the top of any page to switch roles:
 
-The identity selector is at the top of every page. Switching identities is only a local demo convenience. Files and records persist under the ignored `data/` directory. They survive browser reloads and server restarts. Run one Node process per local data directory; multiple replicas require Supabase mode.
+| Demo identity | What you can do |
+| --- | --- |
+| Ana Cruz — Staff | Create events, review remote work assigned to you, and generate reports |
+| Maya Santos — Volunteer | Update a junior volunteer profile and submit remote work |
+| Luis Reyes — Volunteer | Update a senior volunteer profile and submit remote work |
 
-```sh
-npm run build
-npm start
-npm test
+The selector is a demo feature, not a secure login. Records and uploads are saved in the ignored `data/` folder and remain after browser reloads and server restarts. Run only one Node process with that folder; use Supabase mode for multiple server instances.
+
+## What the app includes
+
+The activity has **two major forms and two supporting forms**. Each has eight inputs and two action buttons.
+
+| Form | Type | Result |
+| --- | --- | --- |
+| Create Event | Major | Saves an event and displays it on the event board |
+| Volunteer Profile and Vaccination Update | Major | Updates contact details, evidence, vaccination status, and event eligibility |
+| Remote Work Submission | Supporting | Calculates submitted time; hours count only after the assigning staff approves them |
+| Report Filters and Generation | Supporting | Shows filtered remote submissions, approved and pending totals, and an optional CSV download |
+
+Each form includes labels, helper text, keyboard navigation, visible focus, and validation messages. Invalid submissions show an error summary and move focus to the first invalid field. Toggles are labeled checkboxes. Buttons count toward the assignment's allowed control types. The staff review panel is separate from the four assessed forms.
+
+### Try a complete workflow
+
+1. Select **Ana Cruz** and create an event.
+2. Select **Maya Santos** or **Luis Reyes** and update the volunteer profile.
+3. Submit remote work and assign it to Ana. It starts as pending, with no credited hours.
+4. Switch to **Ana**, review the evidence, and approve or reject the submission.
+5. Generate a report to see the submission and its credited hours.
+
+See the [demo script](docs/demo-script.md) for a guided walkthrough.
+
+## Build and test
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the development server |
+| `npm run build` | Create the production build |
+| `npm start` | Serve the production build and API on the same port; build first |
+| `npm test` | Run tests with an isolated API server and temporary data folder |
+
+The `npm start` command uses POSIX environment-variable syntax. In Windows PowerShell, start the production server after building with:
+
+```powershell
+$env:NODE_ENV = "production"
+node server/index.js
 ```
 
-`npm test` starts an isolated local API server and temporary data directory. Local network permissions are needed in restricted environments. `npm start` serves the production build on the same port as the API.
+Tests need permission to open a local network port in restricted environments.
 
-## Activity scope
+## Optional: use Supabase
 
-| Classification | Form | Controls | Data handling |
-| --- | --- | --- | --- |
-| Major | Create Event | 8 inputs + 2 buttons | Saved event appears on the event board |
-| Major | Volunteer Profile and Vaccination Update | 8 inputs + 2 buttons | Contact details, evidence, vaccination status and event eligibility update |
-| Supporting | Remote Work Submission | 8 inputs + 2 buttons | Server-calculated time remains pending until the assigning staff approves |
-| Supporting | Report Filters and Generation | 8 inputs + 2 buttons | Filtered preview, approved/pending totals, and CSV download |
+Use this mode to sign in with provisioned accounts instead of selecting demo identities.
 
-Buttons are included in the assignment's permitted control types. Toggle controls are labeled checkboxes. Each form uses natural keyboard order, visible focus, explicit labels, helper text, inline errors, an error summary and first-invalid-field focus. The review panel is supplementary to the four assessed forms.
+1. Create a Supabase project and run [supabase/schema.sql](supabase/schema.sql) in its SQL Editor.
+2. In **Authentication > Users**, create fictional staff and volunteer test accounts.
+3. Add each account's Auth UUID to `activity_members`. Set its name, role (`staff` or `volunteer`), and senior flag. Include at least one staff reviewer.
+4. Copy [.env.example](.env.example) to `.env`. Set `STORAGE_MODE=supabase` and fill in `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`.
+5. Restart the app and sign in with a test account's email and password.
 
-This activity does not implement full dashboards, task claiming, kiosk attendance, public registration, bulk account import, automatic senior promotion, email delivery, or backups. Event capacity is stored but event joining is outside this activity. Reports cover saved remote submissions, not onsite attendance or full-project analytics. No medical policy is inferred from an expiry date: enter dates supplied by PAWS and the volunteer's record.
+### Access and storage
 
-## Configure Supabase
+- Keep the service role key on the server. The backend checks access tokens, membership, staff permissions, and record ownership.
+- Database tables have row-level security (RLS) enabled and no direct browser access. Only the server's service role can read or update them. Private evidence downloads also go through authorized backend routes.
+- Sessions are stored in `sessionStorage`. Sign in again when the access token expires; automatic token refresh and session recovery are not included.
+- Form records are stored together in a private JSONB document. A version check prevents concurrent updates from overwriting each other.
 
-1. Create a Supabase project and execute `supabase/schema.sql` in its SQL Editor.
-2. Create staff and volunteer accounts under Authentication > Users. Use fictional test accounts for the activity. Add each Auth UUID to `activity_members`, with the correct name, role (`staff` or `volunteer`) and senior flag. Provision at least one staff reviewer.
-3. Copy `.env.example` to `.env`. Set `STORAGE_MODE=supabase`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`.
-4. Restart the app. It now shows a login form rather than the demo identity selector. Use the provisioned email/password to sign in.
+This small activity schema does not implement the paper's full relational database design. Use the thesis relational model before expanding the project into a full system.
 
-The service role key is server-only. Private evidence is downloaded through authorized backend routes. Database tables have RLS enabled and no browser access; only the server's service role may read or update them. Each request verifies its bearer token and membership on the server. Staff permissions and record ownership are checked on the backend. Sessions are held in sessionStorage, expire with the Supabase access token, and require sign-in again when expired; refresh-token/session recovery is outside the activity.
+Live Supabase database, storage, and authentication integration have **not been tested in this workspace** because they require configured credentials. The local mode, API business rules, and browser workflows were tested.
 
-The focused activity schema stores form records in a private JSONB state document, with an atomic version check for concurrent writes. This is a deliberately small activity implementation, not a migration of the full relational ERD in the paper. Use the thesis relational model before expanding into the full system. Cloud database/storage and real Auth behavior require configured credentials and have not been integration-tested against a live Supabase project in this workspace. The default local mode, API business rules and browser workflows were tested.
+## Validation and limits
 
-## Validation and evidence
+- **Uploads:** One JPEG, PNG, or PDF per upload, up to 5 MB. The browser checks the MIME type and the server checks the file signature. These checks do not verify authenticity or scan for malware; staff must review the document.
+- **Work claims:** Duplicate or overlapping non-rejected claims are rejected. Approval updates are atomic, so a submission cannot receive credit twice.
+- **CSV exports:** Fields are quoted and spreadsheet formulas are neutralized.
+- **Vaccination dates:** Enter dates supplied by PAWS and the volunteer's record. The app does not infer medical policy from an expiry date.
 
-See `docs/form-controls.md` for the complete control list, `docs/manual-checklist.md` for checks, and `docs/demo-script.md` for a 3-minute walkthrough. `docs/screenshots/` contains actual browser captures from synthetic test data. Screenshot evidence files are tiny synthetic PNG fixtures; they are not medical records or real completed work.
+The activity does not include full dashboards, task claiming, kiosk attendance, public registration, bulk account imports, automatic senior promotion, email delivery, or backups. Event capacity is saved, but joining events is not included. Reports cover saved remote submissions only, not onsite attendance or full-project analytics.
 
-File uploads are limited to one JPEG, PNG, or PDF up to 5 MB, checked by MIME at the client and file signatures at the server. This checks type, not document authenticity or malware. Staff must review the actual document. Duplicate and overlapping non-rejected work claims are rejected. Review transitions are atomic and cannot credit the same entry twice. CSV fields are quoted and spreadsheet formulas are neutralized.
+## Documentation
 
-## Submission responsibilities
+| Resource | Contents |
+| --- | --- |
+| [Form controls](docs/form-controls.md) | Complete list of controls used in each form |
+| [Manual checklist](docs/manual-checklist.md) | Steps for checking the app's behavior |
+| [Demo script](docs/demo-script.md) | A roughly three-minute walkthrough for your recording |
+| [Screenshots](docs/screenshots/) | Browser captures made with synthetic test data |
 
-Upload screenshots, a 2-4 minute recording, the actual group repository link, and the generated documentation PDF. Record your own video using the script. Each member must make genuine contributions and commits; no member contributions or repository link are fabricated here. List all group members in the Canvas comments.
+The sample evidence files are tiny synthetic PNG fixtures, not medical records or real completed work.
+
+## Submission checklist
+
+1. Upload screenshots, your own **2–4 minute recording**, the actual group repository link, and the generated documentation PDF.
+2. Ensure every group member makes genuine contributions and commits.
+3. List all group members in the Canvas comments.
+
+No repository link or member contributions are fabricated in this project.
